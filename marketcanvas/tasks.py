@@ -6,7 +6,7 @@ The prompt is never parsed at runtime: keeping the grading criteria explicit
 makes the reward deterministic and reproducible across episodes.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
@@ -51,7 +51,7 @@ SUMMER_SALE_BANNER = Task(
             type="shape",
             color="yellow",
             min_width=120,
-            min_height=40,
+            min_height=40,   
         ),
     ],
 )

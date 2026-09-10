@@ -171,7 +171,15 @@ def score_constraints(canvas: Canvas, task: Task) -> tuple[float, list[str]]:
 
 
 def score_contrast(canvas: Canvas, task: Task) -> tuple[float, list[str]]:
-    """Mean readability across everything carrying text.
+    """Readability of the least readable element carrying text.
+
+    The minimum, not the mean. Accessibility isn't an average: one headline
+    invisible against its background is a broken banner even if everything
+    else is fine, and a mean would let an agent dilute one unreadable
+    element by adding several legible ones.
+
+    The cost is a sparser signal. Improving anything other than the worst
+    element moves nothing.
 
     Labelled shapes count too: a CTA whose text disappears into its own fill
     is unreadable whatever element type it happens to be. Text sits on
@@ -197,7 +205,7 @@ def score_contrast(canvas: Canvas, task: Task) -> tuple[float, list[str]]:
         scores.append(max(0.0, min(1.0, normalized)))
         notes.append(f"{element.role} contrast {ratio:.1f}:1 on {background}")
 
-    return sum(scores) / len(scores), notes
+    return min(scores), notes
 
 
 def score_layout(canvas: Canvas) -> tuple[float, list[str]]:

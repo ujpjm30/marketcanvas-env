@@ -1,18 +1,15 @@
 """Action space: what the agent is allowed to do.
 
-Two layers over the same canvas mutations.
+Two layers over the same canvas mutations. High-level names elements and
+intents directly, which keeps episodes short enough for credit assignment
+to work. Low-level mimics real computer use and is what we care about at
+deployment, but it stretches one semantic edit into several steps.
 
-The high-level layer names elements and intents directly, which keeps
-episodes short enough for credit assignment to work. The low-level layer
-mimics a real computer-use surface (move, click, drag, type) and is the
-distribution we actually care about at deployment, but it stretches a
-single semantic edit into several steps.
-
-Both funnel into Canvas, so the two layers can never disagree about what
-an action means.
+Both funnel into Canvas, so the layers can't disagree about what an action
+means.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 from marketcanvas.canvas import Canvas, CanvasError
@@ -22,16 +19,15 @@ from marketcanvas.elements import Element, ElementType
 class ActionType(str, Enum):
     """Every verb the environment accepts."""
 
-    # High-level (semantic UI)
     ADD_ELEMENT = "add_element"
     MOVE_ELEMENT = "move_element"
     RESIZE_ELEMENT = "resize_element"
     CHANGE_ELEMENT_COLOR = "change_element_color"
     CHANGE_TEXT_COLOR = "change_text_color"
     SET_CONTENT = "set_content"
+    SUBMIT = "submit"
     NOOP = "noop"
 
-    # Low-level (computer use)
     MOUSE_MOVE = "mouse_move"
     MOUSE_CLICK = "mouse_click"
     MOUSE_DRAG = "mouse_drag"
@@ -46,6 +42,7 @@ HIGH_LEVEL_ACTIONS = frozenset(
         ActionType.CHANGE_ELEMENT_COLOR,
         ActionType.CHANGE_TEXT_COLOR,
         ActionType.SET_CONTENT,
+        ActionType.SUBMIT,
         ActionType.NOOP,
     }
 )
@@ -64,8 +61,8 @@ LOW_LEVEL_ACTIONS = frozenset(
 class ActionResult:
     """Outcome of one action.
 
-    A rejected action is a normal event, not a crash: the agent gets told
-    why and the episode continues with a step consumed.
+    A rejected action is a normal event, not a crash: the agent is told why
+    and the episode continues with a step consumed.
     """
 
     ok: bool
@@ -78,7 +75,7 @@ class Cursor:
     """Pointer state for the low-level layer.
 
     Selection has to live somewhere for click-then-type to mean anything,
-    and it is not a property of the canvas, so it lives here.
+    and it isn't a property of the canvas.
     """
 
     x: int = 0
@@ -95,7 +92,7 @@ class ActionHandler:
         self.cursor = Cursor()
 
     def apply(self, action: dict) -> ActionResult:
-        """Dispatch one action dict, catching invalid ones as failures."""
+        """Dispatch one action dict, turning invalid ones into failures."""
         raw_type = action.get("type")
         try:
             action_type = ActionType(raw_type)
@@ -121,6 +118,7 @@ class ActionHandler:
             ActionType.CHANGE_ELEMENT_COLOR: self._change_color,
             ActionType.CHANGE_TEXT_COLOR: self._change_text_color,
             ActionType.SET_CONTENT: self._set_content,
+            ActionType.SUBMIT: self._submit,
             ActionType.NOOP: self._noop,
             ActionType.MOUSE_MOVE: self._mouse_move,
             ActionType.MOUSE_CLICK: self._mouse_click,
@@ -169,13 +167,17 @@ class ActionHandler:
         element = self.canvas.set_content(action["element_id"], action["content"])
         return ActionResult(True, "content set", element.element_id)
 
+    def _submit(self, action: dict) -> ActionResult:
+        """Declares the design finished. env.step reads the type to end it."""
+        return ActionResult(True, "submitted")
+
     def _noop(self, action: dict) -> ActionResult:
         return ActionResult(True, "noop")
 
     # Low-level handlers
 
     def _element_at(self, x: int, y: int) -> Element | None:
-        """Topmost element containing the point, matching what a click hits."""
+        """Topmost element under the point, matching what a click hits."""
         hits = [
             e
             for e in self.canvas.elements
@@ -198,7 +200,7 @@ class ActionHandler:
         return ActionResult(True, "selected", element.element_id)
 
     def _mouse_drag(self, action: dict) -> ActionResult:
-        """Drag translates whatever is under the start point by the delta."""
+        """Translates whatever is under the start point by the delta."""
         x1, y1 = int(action["x1"]), int(action["y1"])
         x2, y2 = int(action["x2"]), int(action["y2"])
         element = self._element_at(x1, y1)
@@ -214,7 +216,7 @@ class ActionHandler:
         return ActionResult(True, "dragged", element.element_id)
 
     def _keyboard_type(self, action: dict) -> ActionResult:
-        """Typing appends to the selected text element, as a text field would."""
+        """Appends to the selected text element, as a text field would."""
         if self.cursor.selected_id is None:
             return ActionResult(False, "nothing selected")
         element = self.canvas.get_element(self.cursor.selected_id)

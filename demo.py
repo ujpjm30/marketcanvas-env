@@ -1,73 +1,72 @@
-"""Runs one scripted episode and prints the state and reward.
+"""Runs the task with each available policy and compares the results.
 
-Uses a fixed action sequence rather than random actions: a random policy on
-this task produces an empty or nonsensical canvas almost every time, which
-shows nothing about whether the reward discriminates.
+The comparison is the point. A single rollout says little; the spread between
+a policy that decides nothing and one that follows rules is what tells you
+whether the reward discriminates and whether the task is reachable at all.
+
+    python demo.py              random and heuristic
+    python demo.py --llm        adds the language model (needs an API key)
+    python demo.py --verbose    prints every action as it is taken
 """
 
+import argparse
 import json
 from pathlib import Path
 
 from marketcanvas.env import MarketCanvasEnv
+from marketcanvas.policy import HeuristicPolicy, RandomPolicy, run_episode
 from marketcanvas.render import save_png
 
 OUTPUT_DIR = Path("outputs")
 
-SCRIPTED_EPISODE = [
-    {
-        "type": "add_element",
-        "element_type": "shape",
-        "role": "background",
-        "x": 0, "y": 0, "width": 800, "height": 600,
-        "color": "#1A237E",
-    },
-    {
-        "type": "add_element",
-        "element_type": "text",
-        "role": "headline",
-        "x": 200, "y": 140, "width": 400, "height": 80,
-        "color": "#1A237E", "text_color": "#FFFFFF",
-        "content": "SUMMER SALE",
-    },
-    {
-        "type": "add_element",
-        "element_type": "shape",
-        "role": "cta_button",
-        "x": 320, "y": 360, "width": 160, "height": 56,
-        "color": "#FFD700", "text_color": "#1A237E",
-        "content": "SHOP NOW",
-    },
-    {"type": "submit"},
-]
+
+def build_policies(use_llm: bool) -> list:
+    policies = [RandomPolicy(seed=0), HeuristicPolicy()]
+    if not use_llm:
+        return policies
+
+    from marketcanvas.policy import LLMPolicy
+
+    try:
+        policies.append(LLMPolicy())
+    except RuntimeError as exc:
+        print(f"skipping llm policy: {exc}\n")
+    return policies
 
 
 def main() -> None:
-    env = MarketCanvasEnv(task_id="summer_sale_banner")
-    obs, info = env.reset(seed=0)
-
-    print(f"Task: {obs['prompt']}\n")
-
-    for i, action in enumerate(SCRIPTED_EPISODE, start=1):
-        obs, reward, terminated, truncated, info = env.step(action)
-        status = "ok" if info["action_ok"] else f"FAILED ({info['action_message']})"
-        print(f"step {i}: {action['type']:16} {status}")
-        if terminated or truncated:
-            break
-
-    print("\nFinal elements:")
-    for element in obs["elements"]:
-        print(
-            f"  {element['id']:6} {element['type']:6} {element['role']:12}"
-            f" ({element['x']}, {element['y']}) {element['width']}x{element['height']}"
-            f" {element['color']}"
-        )
-
-    print(f"\nReward: {reward:.3f}")
-    print(json.dumps(info["reward_breakdown"], indent=2))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--task", default="summer_sale_banner")
+    parser.add_argument("--llm", action="store_true", help="also run the LLM policy")
+    parser.add_argument("--verbose", action="store_true", help="print each action")
+    args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(exist_ok=True)
-    path = save_png(env.canvas, str(OUTPUT_DIR / "final.png"))
-    print(f"\nSaved {path}")
+    env = MarketCanvasEnv(task_id=args.task)
+    print(f"Task: {env.task.prompt}\n")
+
+    results = []
+    for policy in build_policies(args.llm):
+        if args.verbose:
+            print(f"[{policy.name}]")
+        result = run_episode(env, policy, verbose=args.verbose)
+        results.append(result)
+        result["png"] = save_png(env.canvas, str(OUTPUT_DIR / f"{policy.name}.png"))
+        if args.verbose:
+            print()
+
+    print(f'{"policy":12}{"reward":>8}{"steps":>7}{"rejected":>10}{"elements":>10}')
+    print("-" * 47)
+    for r in results:
+        print(
+            f'{r["policy"]:12}{r["reward"]:8.2f}{r["steps"]:7}'
+            f'{r["rejected"]:10}{r["elements"]:10}'
+        )
+
+    best = max(results, key=lambda r: r["reward"])
+    print(f'\nbest: {best["policy"]}')
+    print(json.dumps(best["breakdown"], indent=2))
+    print(f'\nrenders written to {OUTPUT_DIR}/')
 
 
 if __name__ == "__main__":

@@ -5,6 +5,10 @@ intents directly, which keeps episodes short enough for credit assignment
 to work. Low-level mimics real computer use and is what we care about at
 deployment, but it stretches one semantic edit into several steps.
 
+The low-level layer carries a toolbar (select_tool) so it can create
+elements, not just edit existing ones. Without it a blank canvas is a dead
+end and the layer cannot complete an episode on its own.
+
 Both funnel into Canvas, so the layers can't disagree about what an action
 means.
 """
@@ -28,6 +32,7 @@ class ActionType(str, Enum):
     SUBMIT = "submit"
     NOOP = "noop"
 
+    SELECT_TOOL = "select_tool"
     MOUSE_MOVE = "mouse_move"
     MOUSE_CLICK = "mouse_click"
     MOUSE_DRAG = "mouse_drag"
@@ -49,6 +54,7 @@ HIGH_LEVEL_ACTIONS = frozenset(
 
 LOW_LEVEL_ACTIONS = frozenset(
     {
+        ActionType.SELECT_TOOL,
         ActionType.MOUSE_MOVE,
         ActionType.MOUSE_CLICK,
         ActionType.MOUSE_DRAG,
@@ -72,15 +78,24 @@ class ActionResult:
 
 @dataclass
 class Cursor:
-    """Pointer state for the low-level layer.
+    """Pointer and toolbar state for the low-level layer.
 
     Selection has to live somewhere for click-then-type to mean anything,
-    and it isn't a property of the canvas.
+    and it isn't a property of the canvas. The active tool lives here for the
+    same reason: a real design surface has a toolbar, and without one the
+    low-level layer can only edit elements that already exist.
     """
 
     x: int = 0
     y: int = 0
     selected_id: str | None = None
+
+    # Active toolbar state. None means the pointer selects and moves rather
+    # than draws.
+    tool: ElementType | None = None
+    tool_role: str = "element"
+    tool_color: str = "#FFFFFF"
+    tool_text_color: str = "#000000"
 
 
 class ActionHandler:
@@ -120,6 +135,7 @@ class ActionHandler:
             ActionType.SET_CONTENT: self._set_content,
             ActionType.SUBMIT: self._submit,
             ActionType.NOOP: self._noop,
+            ActionType.SELECT_TOOL: self._select_tool,
             ActionType.MOUSE_MOVE: self._mouse_move,
             ActionType.MOUSE_CLICK: self._mouse_click,
             ActionType.MOUSE_DRAG: self._mouse_drag,
@@ -199,14 +215,42 @@ class ActionHandler:
             return ActionResult(True, "clicked empty canvas")
         return ActionResult(True, "selected", element.element_id)
 
+    def _select_tool(self, action: dict) -> ActionResult:
+        """Pick a tool from the toolbar, or pass null to go back to selecting.
+
+        Role and colors ride along because a real toolbar carries the current
+        style; without them a drawn element would have no way to say what it
+        is, and the low-level layer could never satisfy a brief on its own.
+        """
+        raw = action.get("tool")
+        if raw is None:
+            self.cursor.tool = None
+            return ActionResult(True, "tool cleared")
+
+        self.cursor.tool = ElementType(raw)
+        self.cursor.tool_role = action.get("role", "element")
+        self.cursor.tool_color = action.get("color", "#FFFFFF")
+        self.cursor.tool_text_color = action.get("text_color", "#000000")
+        return ActionResult(True, f"{self.cursor.tool.value} tool selected")
+
     def _mouse_drag(self, action: dict) -> ActionResult:
-        """Translates whatever is under the start point by the delta."""
+        """Draw a new element, or move whatever is under the start point.
+
+        The toolbar decides, exactly as it does in a real editor: an active
+        tool means draw mode, so the drag always draws even when it starts
+        over something. Clearing the tool puts the pointer back in select
+        mode, where a drag grabs and translates instead.
+        """
         x1, y1 = int(action["x1"]), int(action["y1"])
         x2, y2 = int(action["x2"]), int(action["y2"])
+
+        if self.cursor.tool is not None:
+            return self._draw(x1, y1, x2, y2)
+
         element = self._element_at(x1, y1)
         if element is None:
             self.cursor.x, self.cursor.y = x2, y2
-            return ActionResult(False, "nothing to drag at start point")
+            return ActionResult(False, "nothing to drag and no tool selected")
 
         self.canvas.move_element(
             element.element_id, element.x + (x2 - x1), element.y + (y2 - y1)
@@ -215,13 +259,41 @@ class ActionHandler:
         self.cursor.selected_id = element.element_id
         return ActionResult(True, "dragged", element.element_id)
 
+    def _draw(self, x1: int, y1: int, x2: int, y2: int) -> ActionResult:
+        """Create an element spanning the dragged rectangle.
+
+        Normalized so a drag in any direction produces the same box, and the
+        new element is left selected so typing can follow immediately.
+        """
+        self.cursor.x, self.cursor.y = x2, y2
+        width, height = abs(x2 - x1), abs(y2 - y1)
+        if width <= 0 or height <= 0:
+            return ActionResult(False, "drag too small to draw an element")
+
+        element = self.canvas.add_element(
+            type=self.cursor.tool,
+            role=self.cursor.tool_role,
+            x=min(x1, x2),
+            y=min(y1, y2),
+            width=width,
+            height=height,
+            color=self.cursor.tool_color,
+            text_color=self.cursor.tool_text_color,
+        )
+        self.cursor.selected_id = element.element_id
+        return ActionResult(True, "drew", element.element_id)
+
     def _keyboard_type(self, action: dict) -> ActionResult:
-        """Appends to the selected text element, as a text field would."""
+        """Appends to the selected element's content, as a text field would.
+
+        Any element accepts a label, not just TEXT: shapes carry content, the
+        renderer draws it, and the reward scores its contrast. Refusing it
+        here would make a CTA button impossible to label without reaching for
+        a high-level action.
+        """
         if self.cursor.selected_id is None:
             return ActionResult(False, "nothing selected")
         element = self.canvas.get_element(self.cursor.selected_id)
-        if element.type is not ElementType.TEXT:
-            return ActionResult(False, "selected element is not text")
         self.canvas.set_content(
             element.element_id, element.content + str(action["text"])
         )

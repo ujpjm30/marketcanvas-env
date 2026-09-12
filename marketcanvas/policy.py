@@ -46,7 +46,6 @@ NAMED_HEX = {
 
 class Policy(ABC):
     """Maps an observation to the next action.
-
     Returning None ends the episode, which is how a policy says "done"
     without the runner having to guess.
     """
@@ -63,11 +62,9 @@ class Policy(ABC):
 
 class RandomPolicy(Policy):
     """Samples actions blindly, ignoring the observation entirely.
-
-    A floor, not a contender. Its value is twofold: it proves the environment
+    A floor, not a contender. Its value is twofold. It proves the environment
     survives arbitrary input without crashing, and it measures what the task
-    is worth to an agent that has learned nothing. If this scores well, the
-    reward is not discriminating.
+    is worth to an agent that has learned nothing. 
     """
 
     name = "random"
@@ -126,16 +123,11 @@ class RandomPolicy(Policy):
 
 class HeuristicPolicy(Policy):
     """Hand-written rules over the observation. No model, no training.
-
     Reads the brief the same way an agent would, by looking at the prompt
     text, then repairs whatever the canvas is missing: lay a background, add
     an absent element, recolor one whose color is wrong. One repair per step,
     so every decision is made against a fresh observation rather than a plan
     formed once at the start.
-
-    The prompt parsing is keyword matching and is brittle by construction. It
-    is here to prove the reward is reachable without a learned policy, not to
-    be a general design agent, and rewriting the prompt would break it.
     """
 
     name = "heuristic"
@@ -216,11 +208,7 @@ class HeuristicPolicy(Policy):
 
 class LLMPolicy(Policy):
     """A language model choosing actions from the same observation.
-
-    Optional: needs ANTHROPIC_API_KEY and the anthropic package. The point of
-    running it next to the other two is that it shares their interface
-    exactly, which is the test of whether the observation is legible to a
-    model rather than only to code that was written alongside it.
+    Optional: needs ANTHROPIC_API_KEY and the anthropic package. 
     """
 
     name = "llm"
@@ -261,7 +249,6 @@ class LLMPolicy(Policy):
     @staticmethod
     def _parse_action(text: str) -> dict:
         """Pull one JSON object out of the reply.
-
         Models wrap JSON in prose or fences often enough that failing on it
         would measure formatting compliance rather than design ability. A
         malformed reply becomes a noop, which costs a step like any other

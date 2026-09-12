@@ -22,7 +22,6 @@ OUTPUT_DIR = Path("outputs")
 
 def build_policies(use_llm: bool) -> list:
     """Assemble the policies to compare.
-
     The LLM is optional and its absence is reported rather than raised: the
     other two need no credentials, and a reviewer without an API key should
     still see the baseline comparison.

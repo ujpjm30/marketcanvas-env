@@ -73,7 +73,6 @@ def execute_action(action: dict) -> dict:
 @mcp.tool()
 def get_current_reward() -> dict:
     """Score the canvas as it stands, without ending the episode.
-
     The real reward is terminal, so this is a preview: it answers "what would
     this design score if I stopped now". Useful for a human or an agent
     inspecting its own work, and deliberately not part of the observation,

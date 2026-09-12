@@ -50,7 +50,6 @@ def contrast_ratio(foreground: str, background: str) -> float:
 
 def color_matches(color: str, name: str) -> bool:
     """Whether a hex color reads as the named color.
-
     Flat per-channel RGB tolerance. Coarse, and it accepts some colors a
     person would name differently, but anything tighter rejects reasonable
     choices like #FFD700 for "yellow".

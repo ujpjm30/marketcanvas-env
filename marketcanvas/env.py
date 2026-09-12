@@ -1,6 +1,6 @@
 """Gymnasium wrapper around the canvas, actions, observation, and reward.
 
-The reward is terminal: design quality is a property of the finished
+The reward is terminal, the design quality is a property of the finished
 artifact, and scoring partial layouts every step would reward churn. Each
 step returns 0.0 until the episode ends.
 """
@@ -21,7 +21,6 @@ DEFAULT_MAX_STEPS = 20
 
 class MarketCanvasEnv(gym.Env):
     """A design task as an episodic MDP.
-
     Spaces are intentionally loose: actions are dicts and observations are
     JSON, because the policy here is a language model consuming tool calls,
     not a network over fixed-width tensors.
@@ -64,7 +63,6 @@ class MarketCanvasEnv(gym.Env):
 
     def step(self, action: dict) -> tuple[dict, float, bool, bool, dict]:
         """Apply one action and report the result.
-
         A rejected action still consumes a step. Free retries would let a
         policy brute-force the action schema instead of learning it.
         """

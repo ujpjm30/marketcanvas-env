@@ -2,8 +2,7 @@
 
 Rendering is deliberately kept out of the step path. Nothing in the
 observation or the reward reads pixels, so this runs only when a caller
-actually wants an image, which is what lets the environment stay cheap
-under parallel rollouts.
+actually wants an image.
 """
 
 from PIL import Image, ImageDraw, ImageFont
@@ -26,9 +25,6 @@ MIN_FONT_SIZE = 8
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     """Best available font at the requested size, falling back to the default.
-
-    Font availability differs per machine, and a missing font should degrade
-    the picture rather than fail the run.
     """
     for path in (
         "/System/Library/Fonts/Helvetica.ttc",
@@ -45,11 +41,9 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
 def _fit_font(
     draw: ImageDraw.ImageDraw, text: str, box_width: int, box_height: int
 ) -> ImageFont.FreeTypeFont:
-    """Largest font from the box height down that still fits the box width.
-
+    """Largest font from the box height down that still fits the box width. 
     Sizing on height alone overflows as soon as the label is long, and a
-    banner whose CTA reads "HOP NOW" is broken however well it scores. The
-    reward does not measure this, so the renderer has to.
+    banner whose CTA reads "HOP NOW" is broken however well it scores.
     """
     size = max(MIN_FONT_SIZE, int(box_height * FONT_HEIGHT_RATIO))
     while size > MIN_FONT_SIZE:

@@ -40,8 +40,7 @@ class Canvas:
         content: str = "",
     ) -> Element:
         """Append a new element and return it.
-
-        z-index is assigned by the canvas rather than the caller: each new
+        z-index is assigned by the canvas rather than the caller, so each new
         element goes strictly on top. Letting the agent pick z would allow
         ties, and a tie has no defined winner, which breaks determinism.
         """

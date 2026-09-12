@@ -8,7 +8,6 @@ from marketcanvas.tasks import ElementRequirement, Task
 
 class ConstraintScorer(Scorer):
     """Fraction of the brief's required elements that are present and valid.
-
     Partial credit is intentional. Demanding every element before any reward
     leaves a fresh policy with no gradient to follow.
     """

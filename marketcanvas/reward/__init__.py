@@ -1,10 +1,9 @@
 """Terminal reward for a finished design.
 
-Split by responsibility: each scorer owns one question about the canvas and
+Split by responsibility, each scorer owns one question about the canvas and
 nothing else, and RewardFunction owns only how their answers are mixed. That
 separation is what makes an ablation a different weight list rather than an
 edit to the scoring code.
-
 All of it reads the semantic state. Contrast comes from the stored hex values,
 not sampled pixels, so scoring never requires a render.
 """

@@ -4,13 +4,9 @@ Two layers over the same canvas mutations. High-level names elements and
 intents directly, which keeps episodes short enough for credit assignment
 to work. Low-level mimics real computer use and is what we care about at
 deployment, but it stretches one semantic edit into several steps.
-
 The low-level layer carries a toolbar (select_tool) so it can create
 elements, not just edit existing ones. Without it a blank canvas is a dead
 end and the layer cannot complete an episode on its own.
-
-Both funnel into Canvas, so the layers can't disagree about what an action
-means.
 """
 
 from dataclasses import dataclass
@@ -66,7 +62,6 @@ LOW_LEVEL_ACTIONS = frozenset(
 @dataclass
 class ActionResult:
     """Outcome of one action.
-
     A rejected action is a normal event, not a crash: the agent is told why
     and the episode continues with a step consumed.
     """
@@ -79,7 +74,6 @@ class ActionResult:
 @dataclass
 class Cursor:
     """Pointer and toolbar state for the low-level layer.
-
     Selection has to live somewhere for click-then-type to mean anything,
     and it isn't a property of the canvas. The active tool lives here for the
     same reason: a real design surface has a toolbar, and without one the
@@ -217,7 +211,6 @@ class ActionHandler:
 
     def _select_tool(self, action: dict) -> ActionResult:
         """Pick a tool from the toolbar, or pass null to go back to selecting.
-
         Role and colors ride along because a real toolbar carries the current
         style; without them a drawn element would have no way to say what it
         is, and the low-level layer could never satisfy a brief on its own.
@@ -235,8 +228,7 @@ class ActionHandler:
 
     def _mouse_drag(self, action: dict) -> ActionResult:
         """Draw a new element, or move whatever is under the start point.
-
-        The toolbar decides, exactly as it does in a real editor: an active
+        The toolbar decides, exactly as it does in a real editor, an active
         tool means draw mode, so the drag always draws even when it starts
         over something. Clearing the tool puts the pointer back in select
         mode, where a drag grabs and translates instead.
@@ -261,7 +253,6 @@ class ActionHandler:
 
     def _draw(self, x1: int, y1: int, x2: int, y2: int) -> ActionResult:
         """Create an element spanning the dragged rectangle.
-
         Normalized so a drag in any direction produces the same box, and the
         new element is left selected so typing can follow immediately.
         """
@@ -285,11 +276,8 @@ class ActionHandler:
 
     def _keyboard_type(self, action: dict) -> ActionResult:
         """Appends to the selected element's content, as a text field would.
-
         Any element accepts a label, not just TEXT: shapes carry content, the
-        renderer draws it, and the reward scores its contrast. Refusing it
-        here would make a CTA button impossible to label without reaching for
-        a high-level action.
+        renderer draws it, and the reward scores its contrast. 
         """
         if self.cursor.selected_id is None:
             return ActionResult(False, "nothing selected")

@@ -35,7 +35,6 @@ class LayoutScorer(Scorer):
 
     def _overlap(self, canvas: Canvas, notes: list[str]) -> float:
         """Penalized by the worst partial collision on the canvas.
-
         Full containment is skipped: text on a backing shape is composition,
         not collision. Only partial overlap counts.
         """

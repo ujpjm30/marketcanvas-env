@@ -25,7 +25,6 @@ EMPTY_CANVAS_REWARD = -1.0
 @dataclass
 class RewardBreakdown:
     """Per-component scores and the reasons behind them.
-
     A single number isn't debuggable. When a rollout scores 0.4, the useful
     question is which component lost the points.
     """
@@ -51,7 +50,6 @@ class RewardBreakdown:
 
 class RewardFunction:
     """A weighted mix of scorers, rescaled to [-1.0, 1.0].
-
     The scorer list is a constructor argument so an ablation is a different
     RewardFunction, not a different reward.py.
     """

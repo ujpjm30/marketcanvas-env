@@ -4,8 +4,7 @@ The observation is a JSON-serializable dict, not a pixel buffer. Raw
 coordinates alone would force the model to do arithmetic every step to
 answer questions it needs on every step ("do these overlap?", "is this
 centered?"), so the spatial relations are precomputed here.
-
-What is deliberately absent: the current reward and the scoring weights.
+What is deliberately absent is the current reward and the scoring weights.
 The task requirements reach the agent as natural language in the prompt.
 Exposing the scoring function itself would let a policy optimize the metric
 directly instead of the design.
@@ -26,7 +25,6 @@ CENTER_TOLERANCE = 10
 
 def relative_position(a: Element, b: Element) -> str:
     """Coarse direction from a to b, based on center offsets.
-
     Whichever axis separates the two centers more decides the label, so a
     pair is described the way a person would describe it rather than by a
     diagonal nobody uses.
@@ -55,7 +53,6 @@ def describe_element(element: Element, canvas: Canvas) -> dict:
 
 def describe_relations(canvas: Canvas) -> list[dict]:
     """Pairwise facts: direction, overlap, and alignment.
-
     Each unordered pair is reported once, from the earlier element's point
     of view, so the agent does not have to reconcile two mirror-image
     statements about the same pair.
@@ -94,7 +91,6 @@ def describe_relations(canvas: Canvas) -> list[dict]:
 
 def effective_background(element: Element, canvas: Canvas) -> str:
     """The color a text element actually sits on.
-
     Contrast is only meaningful against whatever is directly behind the text,
     which is the topmost element below it that covers most of its box, or the
     canvas background when nothing does.

@@ -67,10 +67,8 @@ class Element:
 
     def overlap_area(self, other: "Element") -> int:
         """Intersection area with another element, or 0 if they don't touch.
-
         Both boxes are axis-aligned, so the overlap is just the horizontal
-        span times the vertical span. A non-positive span on either axis
-        means there is no intersection at all.
+        span times the vertical span. 
         """
         dx = min(self.right, other.right) - max(self.left, other.left)
         dy = min(self.bottom, other.bottom) - max(self.top, other.top)

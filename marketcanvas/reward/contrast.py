@@ -21,10 +21,8 @@ class ContrastScorer(Scorer):
     else is fine, and a mean would let an agent dilute one unreadable element
     by adding several legible ones. The cost is a sparser signal, since
     improving anything but the worst element moves nothing.
-
-    Labelled shapes count too: a CTA whose text disappears into its own fill
+    Labelled shapes count too, so the CTA whose text disappears into its own fill
     is unreadable whatever element type it happens to be.
-
     Ramped, not thresholded, so 4.4 and 4.6 aren't worlds apart and a policy
     gets signal for improving 1.5 toward 4.0.
     """

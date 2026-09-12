@@ -14,6 +14,8 @@ See [WRITEUP.md](WRITEUP.md) for the design decisions behind the action
 space, the reward function and its loopholes, and what would break at 10,000
 parallel rollouts.
 
+![Banner produced by the rule-based policy](examples/banner.png)
+
 ## Setup
 
 ```bash

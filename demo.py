@@ -21,15 +21,21 @@ OUTPUT_DIR = Path("outputs")
 
 
 def build_policies(use_llm: bool) -> list:
+    """Assemble the policies to compare.
+
+    The LLM is optional and its absence is reported rather than raised: the
+    other two need no credentials, and a reviewer without an API key should
+    still see the baseline comparison.
+    """
     policies = [RandomPolicy(seed=0), HeuristicPolicy()]
     if not use_llm:
         return policies
 
-    from marketcanvas.policy import LLMPolicy
-
     try:
+        from marketcanvas.policy import LLMPolicy
+
         policies.append(LLMPolicy())
-    except RuntimeError as exc:
+    except (ImportError, RuntimeError) as exc:
         print(f"skipping llm policy: {exc}\n")
     return policies
 
@@ -49,11 +55,23 @@ def main() -> None:
     for policy in build_policies(args.llm):
         if args.verbose:
             print(f"[{policy.name}]")
-        result = run_episode(env, policy, verbose=args.verbose)
+        try:
+            result = run_episode(env, policy, verbose=args.verbose)
+        except Exception as exc:
+            # One policy failing is not a reason to lose the others' results.
+            # The LLM policy reaches the network, so it can fail for reasons
+            # that have nothing to do with the environment: a bad key, a rate
+            # limit, no connection.
+            print(f"  {policy.name} policy failed: {type(exc).__name__}: {exc}\n")
+            continue
         results.append(result)
         result["png"] = save_png(env.canvas, str(OUTPUT_DIR / f"{policy.name}.png"))
         if args.verbose:
             print()
+
+    if not results:
+        print("no policy completed an episode")
+        return
 
     print(f'{"policy":12}{"reward":>8}{"steps":>7}{"rejected":>10}{"elements":>10}')
     print("-" * 47)

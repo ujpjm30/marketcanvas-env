@@ -17,6 +17,12 @@ from marketcanvas.elements import Element, ElementType
 # element type without needing real image assets.
 IMAGE_BORDER_COLOR = "#666666"
 
+# Text sizing. Start at half the box height, then shrink until the label fits
+# the width with a little breathing room on each side.
+FONT_HEIGHT_RATIO = 0.5
+TEXT_FIT_MARGIN = 0.9
+MIN_FONT_SIZE = 8
+
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     """Best available font at the requested size, falling back to the default.
@@ -36,6 +42,25 @@ def _load_font(size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
+def _fit_font(
+    draw: ImageDraw.ImageDraw, text: str, box_width: int, box_height: int
+) -> ImageFont.FreeTypeFont:
+    """Largest font from the box height down that still fits the box width.
+
+    Sizing on height alone overflows as soon as the label is long, and a
+    banner whose CTA reads "HOP NOW" is broken however well it scores. The
+    reward does not measure this, so the renderer has to.
+    """
+    size = max(MIN_FONT_SIZE, int(box_height * FONT_HEIGHT_RATIO))
+    while size > MIN_FONT_SIZE:
+        font = _load_font(size)
+        left, _, right, _ = draw.textbbox((0, 0), text, font=font)
+        if right - left <= box_width * TEXT_FIT_MARGIN:
+            return font
+        size -= 2
+    return _load_font(MIN_FONT_SIZE)
+
+
 def _draw_element(draw: ImageDraw.ImageDraw, element: Element) -> None:
     box = [element.left, element.top, element.right, element.bottom]
 
@@ -43,23 +68,20 @@ def _draw_element(draw: ImageDraw.ImageDraw, element: Element) -> None:
         draw.rectangle(box, fill=element.color, outline=IMAGE_BORDER_COLOR, width=2)
         return
 
-    if element.type is ElementType.SHAPE:
-        draw.rectangle(box, fill=element.color)
-
-    if element.type is ElementType.TEXT:
-        draw.rectangle(box, fill=element.color)
+    draw.rectangle(box, fill=element.color)
 
     if not element.content:
         return
 
-    # Size the text to the box height, then center it. Real layout engines do
-    # line breaking here; a single centered line is enough for this task.
-    font = _load_font(max(10, int(element.height * 0.5)))
+    font = _fit_font(draw, element.content, element.width, element.height)
     left, top, right, bottom = draw.textbbox((0, 0), element.content, font=font)
-    text_x = element.center_x - (right - left) / 2
-    text_y = element.center_y - (bottom - top) / 2
-    fill = element.text_color if element.type is ElementType.TEXT else element.text_color
-    draw.text((text_x, text_y), element.content, fill=fill, font=font)
+    draw.text(
+        (element.center_x - (right - left) / 2 - left,
+         element.center_y - (bottom - top) / 2 - top),
+        element.content,
+        fill=element.text_color,
+        font=font,
+    )
 
 
 def render(canvas: Canvas) -> Image.Image:
